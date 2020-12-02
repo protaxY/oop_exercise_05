@@ -1,4 +1,65 @@
-#include "TVector.h"
+//группа М8О-107Б-19 Федоров Антон Сергеевич
+//вариант 30 5-угольник динамический массив
+
+#include <memory>
+#include <algorithm>
+#include <iostream>
+
+template <class T>
+class TVector{
+private:
+    unsigned long long TVectorSize;
+    unsigned long long TVectorCapacity;
+    std::shared_ptr<T[]> Data;
+
+public:
+    TVector();
+    unsigned long long Size();
+    void PushBack(const T elem);
+    void PopBack();
+    T& operator[] (long long iterator);
+
+    class ForwardIterator{
+    private:
+        std::shared_ptr<T[]> Iterator;
+        unsigned long long index;
+        unsigned long long Size;
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using value_type = T ;
+        using pointer = T*;
+        using reference = T&;
+        ForwardIterator(): Iterator(nullptr) {
+            index = 0;
+        };
+        ForwardIterator(const std::shared_ptr<T[]> &shPtr, unsigned long long ind, unsigned long long Size): Iterator(shPtr), Size(Size){
+            index = ind;
+        };
+        T& operator* (){
+            return Iterator[index];
+        }
+        ForwardIterator& operator++(){
+            if (index + 1 > Size)
+                throw std::out_of_range("Iterator cannot be incremented past the end of range.");
+            ++index;
+            return *this;
+        }
+        bool operator != (const ForwardIterator & rhs) {
+            return this->index != rhs.index;
+        }
+        friend class TVector<T>;
+    };
+    ForwardIterator begin(){
+        return ForwardIterator(Data,0,TVectorSize);
+    }
+    ForwardIterator end(){
+        return ForwardIterator(Data,TVectorSize,TVectorSize);
+    }
+    void Insert(ForwardIterator Iterator, T elem);
+    void Erase(ForwardIterator Iterator);
+};
+
 
 
 template <class T>
@@ -16,15 +77,14 @@ void TVector<T>::PushBack(const T elem){
     if (TVectorCapacity == 0){
         TVectorCapacity = 1;
         TVectorSize = 0;
-        Data = new T[TVectorCapacity];
+        Data = std::move(std::unique_ptr<T[]>{new T[TVectorCapacity]});
     }
     else if (TVectorCapacity == TVectorSize){
         TVectorCapacity *= 2;
-        T* newData = new T[TVectorCapacity];
+        std::shared_ptr<T[]> newData{new T[TVectorCapacity]};
         for (unsigned long long i = 0; i < TVectorSize; ++i){
             newData[i] = Data[i];
         }
-        delete [] Data;
         Data = newData;
     }
     TVectorSize += 1;
@@ -36,47 +96,32 @@ void TVector<T>::PopBack() {
         --TVectorSize;
         if (TVectorSize < TVectorCapacity / 2){
             TVectorCapacity /= 2;
-            T* newData = new T[TVectorCapacity];
+            std::shared_ptr<T[]> newData(new T[TVectorCapacity]);
             for (unsigned long long i = 0; i < TVectorSize; ++i){
                 newData[i] = Data[i];
             }
-            delete [] Data;
             Data = newData;
         }
     }
 }
 template<class T>
-void TVector<T>::Insert(const unsigned long long &pos, const T &elem) {
+void TVector<T>::Insert(ForwardIterator Iterator, T elem){
+    unsigned long long pos = Iterator.index;
     if (pos > TVectorSize){
         std::cout << "incorrect position to insrt\n";
         return;
     }
     PushBack(T());
     for (unsigned long long i = TVectorSize - 1; i > pos; --i){
-        Data[i] = Data[i-1];
+        Data[i] = Data.get()[i-1];
     }
     Data[pos] = elem;
 }
 template<class T>
-void TVector<T>::OrdinaryInsert(const T &elem) {
-    unsigned long long l = 0;
-    unsigned long long r = TVectorSize;
-    unsigned long long m;
-    while (l < r){
-        m = (l + r) / 2;
-        if (Data[m] < elem){
-            l = m + 1;
-        } else {
-            r = m;
-        }
-    }
-    Insert(l, elem);
-}
-template<class T>
-void TVector<T>::Erase(const unsigned long long int &pos) {
+void TVector<T>::Erase(ForwardIterator Iterator){
+    unsigned long long pos = Iterator.index;
     if (pos >= TVectorSize){
-        std::cout << "incorrect position to insrt\n";
-        return;
+        throw std::out_of_range("Erase position out of range.");
     }
     for (unsigned long long i = pos; i < TVectorSize - 1; ++i){
         Data[i] = Data[i+1];
@@ -87,37 +132,3 @@ template <class T>
 T& TVector<T>::operator[] (const long long iterator){
     return Data[iterator];
 }
-template<class T>
-TVector<T>::ForwardIterator::ForwardIterator(): Iterator(nullptr){
-    Index = 0;
-}
-template<class T>
-TVector<T>::ForwardIterator::ForwardIterator(const std::shared_ptr<T> &shPtr, unsigned long long int ind): Iterator(shPtr){
-    Index = ind;
-}
-template<class T>
-typename TVector<T>::ForwardIterator &TVector<T>::ForwardIterator::operator++() {
-    if ((Iterator + 1) * sizeof(T) >= sizeof(*Iterator)){
-        throw std::out_of_range("Iterator cannot be incremented past the end of range.");
-    }
-    ++Index;
-    return *this;
-}
-template<class T>
-bool operator!= (const typename TVector<T>::ForwardIterator &lhs, const typename TVector<T>::ForwardIterator &rhs){
-    return lhs.Iterator != rhs.Iterator;
-}
-template<class T>
-T &TVector<T>::ForwardIterator::operator*(){
-    return Iterator.get()[Index];
-}
-
-//template<class T>
-//typename TVector<T>::ForwardIterator begin(){
-//    return ForwardIterator(TVector<T>::Data, 0);
-//}
-//template<class T>
-//typename TVector<T>::ForwardIterator end() {
-//    return ForwardIterator(TVector<T>::Data, TVector<T>::TVectorSize);
-//}
-
